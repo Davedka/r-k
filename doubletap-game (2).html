@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOUBLETAP - Cyber Arcade Clicker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff41;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Scanline effect */
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.05;
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                #00ff41 2px,
+                #00ff41 4px
+            );
+            z-index: 1;
+        }
+
+        /* Border lines */
+        .border-lines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.1;
+            z-index: 1;
+        }
+
+        .border-lines::before,
+        .border-lines::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00ff41, transparent);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .border-lines::before {
+            top: 0;
+        }
+
+        .border-lines::after {
+            bottom: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Header */
+        .header {
+            padding: 3rem 2rem 1.5rem;
+            text-align: center;
+            border-bottom: 2px solid #00ff41;
+            margin: 0 2rem;
+        }
+
+        .header-subtitle {
+            font-size: 1.125rem;
+            letter-spacing: 0.3em;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+
+        .score-display {
+            font-size: 4.5rem;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            position: relative;
+            display: inline-block;
+        }
+
+        .score-glow {
+            position: absolute;
+            inset: 0;
+            filter: blur(30px);
+            opacity: 0.5;
+            color: #00ff41;
+        }
+
+        .score-value {
+            position: relative;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.4em;
+            margin-top: 0.75rem;
+            opacity: 0.4;
+        }
+
+        /* Main Button Area */
+        .game-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 1rem;
+            position: relative;
+        }
+
+        .button-container {
+            position: relative;
+        }
+
+        .main-button {
+            width: 18rem;
+            height: 18rem;
+            border-radius: 50%;
+            border: 8px solid #00ff41;
+            background: #000;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+            box-shadow: 0 0 20px #00ff41, inset 0 0 10px rgba(0, 255, 65, 0.1);
+        }
+
+        .main-button:hover {
+            transform: scale(1.05);
+        }
+
+        .main-button:active {
+            transform: scale(0.95);
+        }
+
+        .main-button.glow {
+            border-color: #facc15;
+            box-shadow: 0 0 40px #facc15, inset 0 0 20px rgba(250, 204, 21, 0.2);
+        }
+
+        .main-button.shake {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        .button-ring-1,
+        .button-ring-2 {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .button-ring-1 {
+            inset: 0;
+            border: 4px solid #00ff41;
+            opacity: 0.2;
+        }
+
+        .button-ring-2 {
+            inset: 1rem;
+            border: 2px solid #00ff41;
+            opacity: 0.1;
+        }
+
+        .waiting-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 4px solid #ef4444;
+            opacity: 0.6;
+            animation: pulse 0.6s ease-in-out infinite;
+        }
+
+        .perfect-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 8px solid #facc15;
+            animation: expandFade 0.3s ease-out forwards;
+        }
+
+        .button-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            position: relative;
+            z-index: 5;
+        }
+
+        .button-text {
+            font-size: 3rem;
+            letter-spacing: 0.3em;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 15px #00ff41;
+        }
+
+        .button-subtext {
+            font-size: 0.875rem;
+            letter-spacing: 0.2em;
+            opacity: 0.8;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        .multiplier-badge {
+            position: absolute;
+            top: -3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #facc15;
+            text-shadow: 0 0 20px #facc15;
+        }
+
+        /* Floating Text */
+        .floating-text {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+            white-space: nowrap;
+            pointer-events: none;
+            animation: floatUp 1.5s ease-out forwards;
+        }
+
+        .floating-text.perfect {
+            color: #facc15;
+            text-shadow: 0 0 20px #facc15;
+        }
+
+        .floating-text.crit {
+            color: #ef4444;
+            text-shadow: 0 0 20px #ef4444;
+        }
+
+        .floating-text.normal {
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .floating-text.error {
+            color: #ef4444;
+            text-shadow: 0 0 10px #ef4444;
+        }
+
+        /* Upgrades Section */
+        .upgrades-section {
+            max-width: 80rem;
+            margin: 0 auto;
+            padding: 0 1.5rem 4rem;
+        }
+
+        .upgrades-title {
+            font-size: 1.5rem;
+            letter-spacing: 0.3em;
+            margin-bottom: 2rem;
+            text-align: center;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #00ff41;
+            position: relative;
+        }
+
+        .title-glow {
+            position: absolute;
+            inset: 0;
+            filter: blur(10px);
+            opacity: 0.5;
+        }
+
+        .title-text {
+            position: relative;
+        }
+
+        .upgrades-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .upgrade-card {
+            position: relative;
+            border: 4px solid #00ff41;
+            background: #000;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upgrade-card:hover:not(.disabled):not(.maxed) {
+            border-color: #84fab0;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+        }
+
+        .upgrade-card.disabled {
+            border-color: #003311;
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .upgrade-card.maxed {
+            border-color: #facc15;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .upgrade-card.available {
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .upgrade-border-top,
+        .upgrade-border-bottom {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00ff41, transparent);
+            opacity: 0.2;
+        }
+
+        .upgrade-border-top {
+            top: 0;
+        }
+
+        .upgrade-border-bottom {
+            bottom: 0;
+        }
+
+        .upgrade-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .upgrade-name {
+            font-size: 1.25rem;
+            letter-spacing: 0.2em;
+            font-weight: bold;
+        }
+
+        .upgrade-level {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border: 2px solid #00ff41;
+            letter-spacing: 0.1em;
+        }
+
+        .upgrade-card.maxed .upgrade-level {
+            border-color: #facc15;
+            color: #facc15;
+        }
+
+        .upgrade-description {
+            font-size: 0.875rem;
+            opacity: 0.6;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .upgrade-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .upgrade-cost {
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+        }
+
+        .upgrade-card.available .upgrade-cost {
+            color: #00ff41;
+        }
+
+        .upgrade-cost-label {
+            font-size: 0.75rem;
+            opacity: 0.4;
+            letter-spacing: 0.2em;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding-bottom: 2rem;
+        }
+
+        .reset-button {
+            padding: 0.5rem 1.5rem;
+            border: 2px solid #ef4444;
+            background: transparent;
+            color: #ef4444;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.2em;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 2rem;
+        }
+
+        .reset-button:hover {
+            background: #ef4444;
+            color: #000;
+        }
+
+        .game-info {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            opacity: 0.3;
+            line-height: 1.8;
+        }
+
+        /* Animations */
+        @keyframes floatUp {
+            0% { 
+                transform: translate(-50%, 0) scale(1);
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(-50%, -120px) scale(1.2);
+                opacity: 0;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1);
+                opacity: 0.6;
+            }
+            50% { 
+                transform: scale(1.1);
+                opacity: 0.3;
+            }
+        }
+
+        @keyframes expandFade {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .score-display {
+                font-size: 3rem;
+            }
+
+            .main-button {
+                width: 16rem;
+                height: 16rem;
+            }
+
+            .button-text {
+                font-size: 2rem;
+            }
+
+            .upgrades-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Main Menu */
+        .menu-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 2rem;
+        }
+
+        .menu-screen.hidden {
+            display: none;
+        }
+
+        .menu-logo {
+            font-size: 5rem;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .menu-logo-glow {
+            position: absolute;
+            inset: 0;
+            filter: blur(30px);
+            opacity: 0.6;
+        }
+
+        .menu-logo-text {
+            position: relative;
+        }
+
+        .menu-description {
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 3rem;
+            font-size: 1.125rem;
+            line-height: 1.8;
+            opacity: 0.8;
+        }
+
+        .menu-modes {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .mode-button {
+            padding: 1.5rem 3rem;
+            border: 4px solid #00ff41;
+            background: #000;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            min-width: 200px;
+        }
+
+        .mode-button:hover {
+            border-color: #84fab0;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+            transform: translateY(-5px);
+        }
+
+        .mode-button.hard {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .mode-button.hard:hover {
+            border-color: #fca5a5;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+        }
+
+        .mode-label {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            opacity: 0.6;
+            letter-spacing: 0.1em;
+        }
+
+        .game-container {
+            display: none;
+        }
+
+        .game-container.active {
+            display: block;
+        }
+
+        .top-right-controls {
+            position: fixed;
+            top: 1rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 50;
+        }
+
+        .game-mode-indicator {
+            padding: 0.5rem 1rem;
+            border: 2px solid #00ff41;
+            font-size: 0.875rem;
+            letter-spacing: 0.2em;
+        }
+
+        .game-mode-indicator.hard {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .menu-button {
+            padding: 0.5rem 1rem;
+            border: 2px solid #00ff41;
+            background: #000;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .menu-button:hover {
+            background: #00ff41;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .menu-logo {
+                font-size: 3rem;
+            }
+
+            .menu-modes {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .mode-button {
+                min-width: auto;
+                padding: 1rem 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+    <div class="border-lines"></div>
+
+    <!-- Main Menu -->
+    <div class="menu-screen" id="menuScreen">
+        <div class="menu-logo">
+            <span class="menu-logo-glow">DOUBLETAP</span>
+            <span class="menu-logo-text">DOUBLETAP</span>
+        </div>
+
+        <div class="menu-description">
+            <p><strong>HOGYAN JÁTSZD:</strong></p>
+            <p>Kattints PONTOSAN 2-szer a gombra. Nem 1-szer. Nem 3-szor. Hanem PONTOSAN 2-szer.</p>
+            <p>Vásárolj upgrade-eket hogy könnyebb legyen eltalálni a tökéletes időzítést!</p>
+        </div>
+
+        <div class="menu-modes">
+            <button class="mode-button" onclick="startGame('normal')">
+                NORMAL
+                <div class="mode-label">Auto-clicker használható</div>
+            </button>
+            <button class="mode-button hard" onclick="startGame('hard')">
+                HARD
+                <div class="mode-label">Anti auto-clicker védelem</div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Mode Indicator -->
+    <div class="top-right-controls" id="topRightControls" style="display: none;">
+        <div class="game-mode-indicator" id="gameModeIndicator"></div>
+        <button class="menu-button" id="menuButton">MENU</button>
+    </div>
+
+    <div class="container game-container" id="gameContainer">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-subtitle">∷ DOUBLETAP ∷</div>
+            <div class="score-display">
+                <span class="score-glow" id="scoreGlow">0</span>
+                <span class="score-value" id="scoreValue">0</span>
+            </div>
+            <div class="score-label">SCORE</div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="game-area">
+            <div class="button-container" id="buttonContainer">
+                <button class="main-button" id="mainButton">
+                    <div class="button-ring-1"></div>
+                    <div class="button-ring-2"></div>
+                    <div class="button-content">
+                        <div class="button-text" id="buttonText">CLICK</div>
+                        <div class="button-subtext" id="buttonSubtext">PRESS TO START</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Upgrades -->
+        <div class="upgrades-section">
+            <div class="upgrades-title">
+                <span class="title-glow">UPGRADES</span>
+                <span class="title-text">UPGRADES</span>
+            </div>
+
+            <div class="upgrades-grid">
+                <div class="upgrade-card" id="upgrade-doubler">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">MULTIPLIER</div>
+                        <div class="upgrade-level" id="level-doubler">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-doubler">Each success gives ×1 points</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-doubler">10</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-timeExtend">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">TIME WINDOW</div>
+                        <div class="upgrade-level" id="level-timeExtend">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-timeExtend">Click window: 600ms</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-timeExtend">20</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-comboGuard">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">COMBO SHIELD</div>
+                        <div class="upgrade-level" id="level-comboGuard">LV 0</div>
+                    </div>
+                    <div class="upgrade-description">Prevents reset on 3+ clicks (one-time)</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-comboGuard">100</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-critChance">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">CRITICAL HIT</div>
+                        <div class="upgrade-level" id="level-critChance">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-critChance">0% chance for double points</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-critChance">50</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-autoClicker">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">AUTO CLICKER</div>
+                        <div class="upgrade-level" id="level-autoClicker">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-autoClicker">Automatically clicks every 5s</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-autoClicker">200</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-perfectWindow">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">PERFECT ZONE</div>
+                        <div class="upgrade-level" id="level-perfectWindow">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-perfectWindow">Perfect timing window: 200-400ms</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-perfectWindow">150</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-luckyBonus">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">LUCKY BONUS</div>
+                        <div class="upgrade-level" id="level-luckyBonus">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-luckyBonus">5% chance for +10 bonus points</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-luckyBonus">300</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+
+                <div class="upgrade-card" id="upgrade-comboMultiplier">
+                    <div class="upgrade-border-top"></div>
+                    <div class="upgrade-border-bottom"></div>
+                    <div class="upgrade-header">
+                        <div class="upgrade-name">COMBO STREAK</div>
+                        <div class="upgrade-level" id="level-comboMultiplier">LV 0</div>
+                    </div>
+                    <div class="upgrade-description" id="desc-comboMultiplier">Every 5 success: +1 bonus point</div>
+                    <div class="upgrade-footer">
+                        <div class="upgrade-cost" id="cost-comboMultiplier">500</div>
+                        <div class="upgrade-cost-label">POINTS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <button class="reset-button" id="resetButton">RESET PROGRESS</button>
+            <div class="game-info">
+                <div>PERFECT TIMING: 200-400ms = +1 BONUS</div>
+                <div>PROGRESS AUTO-SAVED</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            score: 0,
+            clickCount: 0,
+            lastClickTime: 0,
+            multiplier: 1,
+            timeWindow: 600,
+            perfectWindowMin: 200,
+            perfectWindowMax: 400,
+            comboStreak: 0,
+            gameMode: 'normal',
+            lastClickTimestamps: [],
+            upgrades: {
+                doubler: 0,
+                timeExtend: 0,
+                comboGuard: 0,
+                critChance: 0,
+                autoClicker: 0,
+                perfectWindow: 0,
+                luckyBonus: 0,
+                comboMultiplier: 0
+            }
+        };
+
+        let clickTimeout = null;
+        let autoClickerInterval = null;
+
+        // DOM Elements
+        const menuScreen = document.getElementById('menuScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const topRightControls = document.getElementById('topRightControls');
+        const gameModeIndicator = document.getElementById('gameModeIndicator');
+        const menuButton = document.getElementById('menuButton');
+        const scoreValue = document.getElementById('scoreValue');
+        const scoreGlow = document.getElementById('scoreGlow');
+        const mainButton = document.getElementById('mainButton');
+        const buttonText = document.getElementById('buttonText');
+        const buttonSubtext = document.getElementById('buttonSubtext');
+        const buttonContainer = document.getElementById('buttonContainer');
+        const resetButton = document.getElementById('resetButton');
+
+        // Start Game
+        function startGame(mode) {
+            gameState.gameMode = mode;
+            menuScreen.classList.add('hidden');
+            gameContainer.classList.add('active');
+            topRightControls.style.display = 'flex';
+            gameModeIndicator.textContent = mode.toUpperCase() + ' MODE';
+            if (mode === 'hard') {
+                gameModeIndicator.classList.add('hard');
+            }
+            loadGame();
+            updateUI();
+        }
+
+        // Back to Menu
+        menuButton.addEventListener('click', () => {
+            if (confirm('Vissza a menübe? A jelenlegi játék folytatódni fog.')) {
+                menuScreen.classList.remove('hidden');
+                gameContainer.classList.remove('active');
+                topRightControls.style.display = 'none';
+                resetClick();
+                if (autoClickerInterval) clearInterval(autoClickerInterval);
+            }
+        });
+
+        // Anti Auto-Clicker Check
+        function isAutoClicker() {
+            if (gameState.gameMode !== 'hard') return false;
+            
+            const now = Date.now();
+            gameState.lastClickTimestamps.push(now);
+            
+            // Keep only last 10 clicks
+            if (gameState.lastClickTimestamps.length > 10) {
+                gameState.lastClickTimestamps.shift();
+            }
+            
+            // Check if last 5 clicks are suspiciously consistent (within 20ms variance)
+            if (gameState.lastClickTimestamps.length >= 5) {
+                const recent = gameState.lastClickTimestamps.slice(-5);
+                const intervals = [];
+                for (let i = 1; i < recent.length; i++) {
+                    intervals.push(recent[i] - recent[i-1]);
+                }
+                
+                const avg = intervals.reduce((a, b) => a + b) / intervals.length;
+                const variance = intervals.every(interval => Math.abs(interval - avg) < 20);
+                
+                if (variance && avg < 200) {
+                    return true; // Likely auto-clicker
+                }
+            }
+            
+            return false;
+        }
+
+        // Main Button Click Handler
+        mainButton.addEventListener('click', handleClick);
+
+        function handleClick() {
+            if (isAutoClicker()) {
+                mainButton.classList.add('shake');
+                addFloatingText('AUTO-CLICKER DETECTED!', 'error');
+                setTimeout(() => mainButton.classList.remove('shake'), 300);
+                resetClick();
+                return;
+            }
+
+            const now = Date.now();
+            const timeDiff = now - gameState.lastClickTime;
+
+            if (gameState.clickCount === 0) {
+                // First click
+                gameState.clickCount = 1;
+                gameState.lastClickTime = now;
+                mainButton.classList.add('glow');
+                buttonText.textContent = 'NOW!';
+                buttonSubtext.textContent = `${Math.floor(gameState.timeWindow)}MS WINDOW`;
+
+                // Add waiting ring
+                const waitingRing = document.createElement('div');
+                waitingRing.className = 'waiting-ring';
+                waitingRing.id = 'waitingRing';
+                mainButton.appendChild(waitingRing);
+
+                // Set timeout
+                if (clickTimeout) clearTimeout(clickTimeout);
+                clickTimeout = setTimeout(() => {
+                    resetClick();
+                }, gameState.timeWindow);
+
+            } else if (gameState.clickCount === 1) {
+                // Second click
+                if (clickTimeout) clearTimeout(clickTimeout);
+                removeWaitingRing();
+
+                if (timeDiff <= gameState.timeWindow) {
+                    // Success!
+                    let points = gameState.multiplier;
+                    let isPerfect = false;
+                    let isCrit = false;
+                    let isLucky = false;
+
+                    // Perfect timing bonus
+                    if (timeDiff >= gameState.perfectWindowMin && timeDiff <= gameState.perfectWindowMax) {
+                        isPerfect = true;
+                        points += 1;
+                        showPerfectRing();
+                    }
+
+                    // Critical hit
+                    const critRoll = Math.random() * 100;
+                    if (critRoll < (gameState.upgrades.critChance * 10)) {
+                        isCrit = true;
+                        points *= 2;
+                    }
+
+                    // Lucky bonus
+                    const luckyRoll = Math.random() * 100;
+                    if (luckyRoll < (gameState.upgrades.luckyBonus * 5)) {
+                        isLucky = true;
+                        points += 10;
+                    }
+
+                    // Combo streak
+                    if (gameState.upgrades.comboMultiplier > 0) {
+                        gameState.comboStreak++;
+                        if (gameState.comboStreak % 5 === 0) {
+                            points += gameState.upgrades.comboMultiplier;
+                        }
+                    }
+
+                    gameState.score += points;
+                    
+                    let floatText = '';
+                    if (isLucky) {
+                        floatText = `LUCKY +${points}!`;
+                    } else if (isPerfect) {
+                        floatText = `PERFECT +${points}!`;
+                    } else if (isCrit) {
+                        floatText = `CRIT +${points}!`;
+                    } else {
+                        floatText = `+${points}`;
+                    }
+                    
+                    let floatClass = isLucky ? 'crit' : isPerfect ? 'perfect' : isCrit ? 'crit' : 'normal';
+                    addFloatingText(floatText, floatClass);
+
+                    resetClick();
+                    updateUI();
+                    saveGame();
+
+                } else {
+                    // Too slow
+                    mainButton.classList.add('shake');
+                    addFloatingText('TOO SLOW', 'error');
+                    setTimeout(() => mainButton.classList.remove('shake'), 300);
+                    gameState.comboStreak = 0;
+                    resetClick();
+                }
+
+            } else {
+                // 3+ clicks
+                if (gameState.upgrades.comboGuard > 0) {
+                    // Shield protection
+                    gameState.clickCount = 1;
+                    gameState.lastClickTime = now;
+                } else {
+                    mainButton.classList.add('shake');
+                    addFloatingText('RESET!', 'error');
+                    setTimeout(() => mainButton.classList.remove('shake'), 300);
+                    gameState.comboStreak = 0;
+                    resetClick();
+                }
+            }
+        }
+
+        function resetClick() {
+            gameState.clickCount = 0;
+            mainButton.classList.remove('glow');
+            buttonText.textContent = 'CLICK';
+            buttonSubtext.textContent = 'PRESS TO START';
+            removeWaitingRing();
+            removeMultiplierBadge();
+        }
+
+        function removeWaitingRing() {
+            const ring = document.getElementById('waitingRing');
+            if (ring) ring.remove();
+        }
+
+        function showPerfectRing() {
+            const ring = document.createElement('div');
+            ring.className = 'perfect-ring';
+            mainButton.appendChild(ring);
+            setTimeout(() => ring.remove(), 300);
+        }
+
+        function removeMultiplierBadge() {
+            const badge = document.getElementById('multiplierBadge');
+            if (badge) badge.remove();
+        }
+
+        function addFloatingText(text, className) {
+            const floatingText = document.createElement('div');
+            floatingText.className = `floating-text ${className}`;
+            floatingText.textContent = text;
+            buttonContainer.appendChild(floatingText);
+            setTimeout(() => floatingText.remove(), 1500);
+        }
+
+        // Auto Clicker
+        function startAutoClicker() {
+            if (autoClickerInterval) clearInterval(autoClickerInterval);
+            if (gameState.upgrades.autoClicker === 0 || gameState.gameMode === 'hard') return;
+            
+            const delay = Math.max(1000, 5000 - (gameState.upgrades.autoClicker - 1) * 500);
+            autoClickerInterval = setInterval(() => {
+                mainButton.click();
+            }, delay);
+        }
+
+        // Upgrade System
+        const upgrades = ['doubler', 'timeExtend', 'comboGuard', 'critChance', 'autoClicker', 'perfectWindow', 'luckyBonus', 'comboMultiplier'];
+
+        upgrades.forEach(upgrade => {
+            const element = document.getElementById(`upgrade-${upgrade}`);
+            if (element) {
+                element.addEventListener('click', () => buyUpgrade(upgrade));
+            }
+        });
+
+        function buyUpgrade(type) {
+            const costs = {
+                doubler: Math.floor(10 * Math.pow(1.5, gameState.upgrades.doubler)),
+                timeExtend: Math.floor(20 * Math.pow(1.5, gameState.upgrades.timeExtend)),
+                comboGuard: 100,
+                critChance: Math.floor(50 * Math.pow(2, gameState.upgrades.critChance)),
+                autoClicker: Math.floor(200 * Math.pow(1.8, gameState.upgrades.autoClicker)),
+                perfectWindow: Math.floor(150 * Math.pow(1.6, gameState.upgrades.perfectWindow)),
+                luckyBonus: Math.floor(300 * Math.pow(2, gameState.upgrades.luckyBonus)),
+                comboMultiplier: Math.floor(500 * Math.pow(2.5, gameState.upgrades.comboMultiplier))
+            };
+
+            const maxLevels = {
+                doubler: Infinity,
+                timeExtend: 5,
+                comboGuard: 1,
+                critChance: 5,
+                autoClicker: 10,
+                perfectWindow: 5,
+                luckyBonus: 3,
+                comboMultiplier: 5
+            };
+
+            const cost = costs[type];
+            const currentLevel = gameState.upgrades[type];
+            const maxLevel = maxLevels[type];
+
+            // Auto-clicker check for hard mode
+            if (type === 'autoClicker' && gameState.gameMode === 'hard') {
+                addFloatingText('DISABLED IN HARD MODE', 'error');
+                return;
+            }
+
+            if (gameState.score >= cost && currentLevel < maxLevel) {
+                gameState.score -= cost;
+                gameState.upgrades[type]++;
+                
+                // Update multiplier and time window
+                gameState.multiplier = 1 + gameState.upgrades.doubler;
+                gameState.timeWindow = 600 + (gameState.upgrades.timeExtend * 200);
+                
+                // Update perfect window
+                if (gameState.upgrades.perfectWindow > 0) {
+                    gameState.perfectWindowMin = Math.max(100, 200 - (gameState.upgrades.perfectWindow * 20));
+                    gameState.perfectWindowMax = Math.min(600, 400 + (gameState.upgrades.perfectWindow * 40));
+                }
+
+                // Start auto-clicker if purchased
+                if (type === 'autoClicker') {
+                    startAutoClicker();
+                }
+
+                updateUI();
+                saveGame();
+            }
+        }
+
+        function updateUI() {
+            // Update score
+            scoreValue.textContent = gameState.score;
+            scoreGlow.textContent = gameState.score;
+
+            // Update multiplier badge
+            removeMultiplierBadge();
+            if (gameState.multiplier > 1) {
+                const badge = document.createElement('div');
+                badge.className = 'multiplier-badge';
+                badge.id = 'multiplierBadge';
+                badge.textContent = `×${gameState.multiplier}`;
+                buttonContainer.appendChild(badge);
+            }
+
+            // Update upgrades
+            updateUpgradeCard('doubler', 
+                `Each success gives ×${1 + gameState.upgrades.doubler} points`,
+                Math.floor(10 * Math.pow(1.5, gameState.upgrades.doubler)),
+                Infinity
+            );
+
+            updateUpgradeCard('timeExtend',
+                `Click window: ${600 + gameState.upgrades.timeExtend * 200}ms`,
+                Math.floor(20 * Math.pow(1.5, gameState.upgrades.timeExtend)),
+                5
+            );
+
+            updateUpgradeCard('comboGuard',
+                'Prevents reset on 3+ clicks (one-time)',
+                100,
+                1
+            );
+
+            updateUpgradeCard('critChance',
+                `${gameState.upgrades.critChance * 10}% chance for double points`,
+                Math.floor(50 * Math.pow(2, gameState.upgrades.critChance)),
+                5
+            );
+
+            updateUpgradeCard('autoClicker',
+                gameState.gameMode === 'hard' ? 'DISABLED IN HARD MODE' : `Automatically clicks every ${Math.max(1, 5 - (gameState.upgrades.autoClicker - 1) * 0.5)}s`,
+                Math.floor(200 * Math.pow(1.8, gameState.upgrades.autoClicker)),
+                10
+            );
+
+            updateUpgradeCard('perfectWindow',
+                `Perfect timing window: ${gameState.perfectWindowMin}-${gameState.perfectWindowMax}ms`,
+                Math.floor(150 * Math.pow(1.6, gameState.upgrades.perfectWindow)),
+                5
+            );
+
+            updateUpgradeCard('luckyBonus',
+                `${gameState.upgrades.luckyBonus * 5}% chance for +10 bonus points`,
+                Math.floor(300 * Math.pow(2, gameState.upgrades.luckyBonus)),
+                3
+            );
+
+            updateUpgradeCard('comboMultiplier',
+                `Every 5 success: +${gameState.upgrades.comboMultiplier} bonus point${gameState.upgrades.comboMultiplier > 1 ? 's' : ''}`,
+                Math.floor(500 * Math.pow(2.5, gameState.upgrades.comboMultiplier)),
+                5
+            );
+        }
+
+        function updateUpgradeCard(type, description, cost, maxLevel) {
+            const card = document.getElementById(`upgrade-${type}`);
+            if (!card) return;
+
+            const level = gameState.upgrades[type];
+            const isMaxed = level >= maxLevel;
+            const canAfford = gameState.score >= cost;
+            const isDisabledInHard = type === 'autoClicker' && gameState.gameMode === 'hard';
+
+            // Update level
+            const levelEl = document.getElementById(`level-${type}`);
+            levelEl.textContent = isMaxed ? 'MAX' : `LV ${level}`;
+
+            // Update description
+            const descEl = document.getElementById(`desc-${type}`);
+            if (descEl) descEl.textContent = description;
+
+            // Update cost
+            const costEl = document.getElementById(`cost-${type}`);
+            costEl.textContent = isMaxed ? '━━━' : cost;
+
+            // Update classes
+            card.classList.remove('disabled', 'maxed', 'available');
+            if (isMaxed || isDisabledInHard) {
+                card.classList.add('maxed');
+            } else if (canAfford) {
+                card.classList.add('available');
+            } else {
+                card.classList.add('disabled');
+            }
+        }
+
+        // Save/Load
+        function saveGame() {
+            localStorage.setItem('doubletap-save', JSON.stringify({
+                score: gameState.score,
+                upgrades: gameState.upgrades,
+                gameMode: gameState.gameMode
+            }));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('doubletap-save');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    gameState.score = data.score || 0;
+                    gameState.upgrades = data.upgrades || {
+                        doubler: 0,
+                        timeExtend: 0,
+                        comboGuard: 0,
+                        critChance: 0,
+                        autoClicker: 0,
+                        perfectWindow: 0,
+                        luckyBonus: 0,
+                        comboMultiplier: 0
+                    };
+                    gameState.multiplier = 1 + gameState.upgrades.doubler;
+                    gameState.timeWindow = 600 + (gameState.upgrades.timeExtend * 200);
+                    
+                    if (gameState.upgrades.perfectWindow > 0) {
+                        gameState.perfectWindowMin = Math.max(100, 200 - (gameState.upgrades.perfectWindow * 20));
+                        gameState.perfectWindowMax = Math.min(600, 400 + (gameState.upgrades.perfectWindow * 40));
+                    }
+
+                    if (gameState.upgrades.autoClicker > 0) {
+                        startAutoClicker();
+                    }
+                } catch (e) {
+                    console.error('Failed to load save:', e);
+                }
+            }
+        }
+
+        // Reset
+        resetButton.addEventListener('click', () => {
+            if (confirm('Reset all progress? This cannot be undone.')) {
+                gameState = {
+                    score: 0,
+                    clickCount: 0,
+                    lastClickTime: 0,
+                    multiplier: 1,
+                    timeWindow: 600,
+                    perfectWindowMin: 200,
+                    perfectWindowMax: 400,
+                    comboStreak: 0,
+                    gameMode: gameState.gameMode,
+                    lastClickTimestamps: [],
+                    upgrades: {
+                        doubler: 0,
+                        timeExtend: 0,
+                        comboGuard: 0,
+                        critChance: 0,
+                        autoClicker: 0,
+                        perfectWindow: 0,
+                        luckyBonus: 0,
+                        comboMultiplier: 0
+                    }
+                };
+                if (autoClickerInterval) clearInterval(autoClickerInterval);
+                localStorage.removeItem('doubletap-save');
+                resetClick();
+                updateUI();
+            }
+        });
+    </script>
+</body>
+</html>
